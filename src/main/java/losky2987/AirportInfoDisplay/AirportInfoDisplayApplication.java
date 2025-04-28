@@ -1,4 +1,4 @@
-package losky2987.airportinfodisplay;
+package losky2987.AirportInfoDisplay;
 
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;

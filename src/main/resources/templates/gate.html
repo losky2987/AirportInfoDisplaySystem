@@ -1,0 +1,192 @@
+<!--Attention: all messages get from backends in GateInfo-->
+
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge"/>
+    <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+    <title th:text="'Gate ' + ${gateInfo.gate} + ' - ' + #{sys.name}"></title>
+    <link th:href="@{/static/bootstrap.min.css}" rel="stylesheet">
+    <script th:src="@{/static/bootstrap.bundle.min.js}"></script>
+    <style>
+        :root {
+            --bg: #0f172a;
+            --panel: #1e293b;
+            --text: #ffffff;
+            --accent-blue: #2563eb;
+            --accent-green: #16a34a;
+            --accent-red: #dc2626;
+            --accent-amber: #d97706;
+            --accent-gray: #64748b;
+            --accent-black: #000000;
+        }
+
+        html,body {
+            margin: 0;
+            height: 100%;
+            background: var(--bg);
+            color: var(--text);
+            font-family: system-ui, sans-serif;
+        }
+
+        .container {
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+            padding: 1.5rem;
+            box-sizing: border-box;
+        }
+
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 2rem;
+        }
+
+        .logo { height: 72px; }
+        .gate-id { text-align: right; }
+        .gate-id .label { font-size: 1.2rem; opacity: .7; }
+        .gate-id .value { font-size: 4rem; font-weight: 800; }
+        .clock { font-size: 1.1rem; opacity: .7; }
+
+        .board {
+            flex: 1;
+            display: grid;
+            grid-template-columns: repeat(12, 1fr);
+            gap: 1.5rem;
+            background: var(--panel);
+            border-radius: 1rem;
+            padding: 2rem;
+        }
+
+        .flight { grid-column: span 4; display: flex; flex-direction: column; }
+        .flight .title { font-size: 1.4rem; opacity: .8; }
+        .flight .value { font-size: 4rem; font-weight: 700; margin-top: .5rem; }
+        .flight .airline { margin-top: 1.5rem; font-size: 1.2rem; }
+        .flight .alliance { font-size: .9rem; opacity: .7; }
+
+        .times { grid-column: span 4; display: flex; flex-direction: column; justify-content: center; gap: 1.5rem; text-align: center; }
+        .times .label { font-size: 1.2rem; opacity: .8; }
+        .time-value { font-size: 3rem; font-weight: 600; }
+
+        .status-wrapper { grid-column: span 4; display: flex; flex-direction: column; justify-content: space-between; }
+        .status { font-size: 2.2rem; font-weight: 700; padding: 1rem 1.5rem; border-radius: .75rem; margin-bottom: 2rem; transition: transform .3s ease, background .3s ease; }
+        .notification { font-size: 1.2rem; }
+        .changelog { font-size: .9rem; opacity: .6; }
+
+        /* Dynamic status colors */
+        .status[data-color="NotBoarding"] { background: var(--accent-gray); }
+        .status[data-color="StartBoarding"] { background: var(--accent-blue); }
+        .status[data-color="LastCall"] { background: var(--accent-red); }
+        .status[data-color="BoardingCompleted"] { background: var(--accent-green); }
+        .status[data-color="GateClose"] { background: var(--accent-black); }
+        .status[data-color^="GroupOrAreaBoarding"] { background: var(--accent-amber); }
+    </style>
+</head>
+<body>
+<div id="gate-display" class="container" data-gate-id="[[${gateInfo.gate}]]">
+    <!-- Top bar -->
+    <header class="header">
+        <img class="logo" th:src="${gateInfo.airportLogoUrl}" alt="Airport Logo"/>
+        <div class="gate-id">
+            <span class="label">Gate</span>
+            <span class="value" th:text="${gateInfo.gate}"></span>
+        </div>
+        <time id="clock" class="clock"></time>
+    </header>
+
+    <!-- Main board -->
+    <section class="board">
+        <div class="flight">
+            <div class="title">Flight</div>
+            <div id="flight-number" class="value" th:text="${gateInfo.flightNumber}"></div>
+            <div class="airline" id="airline" th:text="${gateInfo.airline}"></div>
+            <div class="alliance" id="alliance" th:text="${gateInfo.alliance}"></div>
+        </div>
+
+        <div class="times">
+            <div>
+                <span class="label">Boarding</span>
+                <span id="boarding-time" class="time-value" th:text="${#dates.format(gateInfo.boardingTime, 'HH:mm')}"></span>
+            </div>
+            <div>
+                <span class="label">Departure</span>
+                <span id="departure-time" class="time-value" th:text="${#dates.format(gateInfo.departureTime, 'HH:mm')}"></span>
+            </div>
+        </div>
+
+        <div class="status-wrapper">
+            <div id="status" class="status" th:text="${gateInfo.status}"></div>
+            <p id="notification" class="notification" th:text="${gateInfo.notification}"></p>
+            <p id="changelog" class="changelog" th:text="${gateInfo.changeLog}"></p>
+        </div>
+    </section>
+</div>
+
+</body>
+<script>
+    (function () {
+        const REFRESH_INTERVAL = 30000; // 30 s
+        const gateDisplay = document.getElementById("gate-display");
+        const gateId = gateDisplay.dataset.gateId; // e.g. "A12"
+
+        // DOM refs
+        const clock = document.getElementById("clock");
+        const flightNumber = document.getElementById("flight-number");
+        const airline = document.getElementById("airline");
+        const alliance = document.getElementById("alliance");
+        const boardingTime = document.getElementById("boarding-time");
+        const departureTime = document.getElementById("departure-time");
+        const statusEl = document.getElementById("status");
+        const notificationEl = document.getElementById("notification");
+        const changelogEl = document.getElementById("changelog");
+
+        // ---------- Clock ----------
+        function tick() {
+            const now = new Date();
+            clock.textContent = now.toLocaleTimeString("zh-CN", { hour12: false });
+        }
+        setInterval(tick, 1000);
+        tick();
+
+        // ---------- Polling ----------
+        async function fetchGateInfo() {
+            try {
+                const res = await fetch(`/api/gate-info/${gateId}`);
+                if (!res.ok) throw new Error(res.statusText);
+                const data = await res.json();
+                render(data);
+            } catch (err) {
+                console.error("Could not fetch gate info", err);
+            }
+        }
+
+        function render(data) {
+            flightNumber.textContent = data.flightNumber;
+            airline.textContent = data.airline;
+            alliance.textContent = data.alliance;
+            boardingTime.textContent = formatTime(data.boardingTime);
+            departureTime.textContent = formatTime(data.departureTime);
+            statusEl.textContent = data.status;
+            statusEl.setAttribute("data-color", data.status); // color hook for CSS
+            notificationEl.textContent = data.notification || "";
+            changelogEl.textContent = data.changeLog || "";
+
+            // subtle pop animation
+            statusEl.style.transform = "scale(1.1)";
+            setTimeout(() => (statusEl.style.transform = "scale(1)"), 300);
+        }
+
+        function formatTime(timeString) {
+            // server returns "HH:mm:ss" or "HH:mm"; we want HH:mm
+            return timeString.substring(0, 5);
+        }
+
+        // initial + interval
+        fetchGateInfo();
+        setInterval(fetchGateInfo, REFRESH_INTERVAL);
+    })();
+</script>
+</html>
