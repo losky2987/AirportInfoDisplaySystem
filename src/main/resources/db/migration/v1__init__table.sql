@@ -4,7 +4,8 @@ DROP TABLE IF EXISTS
     flight_shared,
     flight,
     gate,
-    admin
+    admin,
+    gate_flight
     CASCADE;
 
 DROP TYPE IF EXISTS gate_status  CASCADE;
@@ -53,4 +54,10 @@ create table flight_time_point (
     gate_status gate_status not null,
     time_point time not null,
     primary key (flight_number, gate_status, time_point)
+);
+
+create table gate_flight (
+    gate text references gate(number) on delete cascade,
+    flight varchar(12) references flight(number) on delete cascade,
+    primary key (gate, flight)
 );
