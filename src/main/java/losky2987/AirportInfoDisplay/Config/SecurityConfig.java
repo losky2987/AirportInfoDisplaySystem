@@ -14,18 +14,18 @@ public class SecurityConfig {
                         .requestMatchers("/error",
                                 "/css/**",
                                 "/js/**",
-                                "/login",
+                                "/admin/login",
                                 "/gate",
                                 "/central",
                                 "/oauth2/**"
                         ).permitAll()
-                        .requestMatchers("/admin/**").authenticated()
+                        .requestMatchers("/admin/airport/**", "/admin/airlines/**", "/admin/ground_staff/**").authenticated()
                         .anyRequest().authenticated()
                 )
                 .oauth2Login(oauth -> oauth
-                        .loginPage("/login")
+                        .loginPage("/admin/login")
                 )
-                .logout(logout -> logout.logoutSuccessUrl("/login"));
+                .logout(logout -> logout.logoutSuccessUrl("/admin/login"));
         return chainBuilder.build();
     }
 }

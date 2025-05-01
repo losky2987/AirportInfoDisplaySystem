@@ -9,5 +9,6 @@ public enum GateStatus {
     AllBoarding,
     LastCall,
     BoardingCompleted,
-    GateClosed
+    GateClose,
+    GateOpen
 }
