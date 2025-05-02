@@ -1,19 +1,26 @@
 package losky2987.AirportInfoDisplay.Domain;
 
+import org.springframework.data.annotation.Id;
+import org.springframework.data.annotation.PersistenceCreator;
+import org.springframework.data.annotation.Transient;
+
 import java.time.LocalTime;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.function.BiFunction;
 import java.util.stream.Collectors;
 
 public class Flight {
+    @Id
     private final String number; // flight number, like CA936
     private final List<String> shared; // shared number, if it needs
     private final String airlinesCode; // to parse for Airlines logo and airlines union
     private final FlightType flightType; // to parse for gate information
-
-    private Map<FlightType, String> cityNode; // this map to storage the cities for departure, destination or transfer, depends on flight type
-
-    private Map<GateStatus, LocalTime> timePoint; // this map to storage every time points, like boarding, departure, arrival etc.
+    @Transient
+    private final Map<FlightType, String> cityNode = new HashMap<>(); // this map to storage the cities for departure, destination or transfer, depends on flight type
+    @Transient
+    private final Map<GateStatus, LocalTime> timePoint = new HashMap<>(); // this map to storage every time points, like boarding, departure, arrival etc.
 
     public Flight(String number, List<String> shared, FlightType flightType) {
         this.number = number;
@@ -27,16 +34,17 @@ public class Flight {
         this.shared = shared;
         this.airlinesCode = number.substring(0, 2);
         this.flightType = flightType;
-        this.cityNode = cityNode;
+        this.cityNode.putAll(cityNode);
     }
 
+    @PersistenceCreator
     public Flight(String number, List<String> shared, FlightType flightType, Map<FlightType, String> cityNode, Map<GateStatus, LocalTime> timePoint) {
         this.number = number;
         this.shared = shared;
         this.airlinesCode = number.substring(0, 2);
         this.flightType = flightType;
-        this.cityNode = cityNode;
-        this.timePoint = timePoint;
+        this.cityNode.putAll(cityNode);
+        this.timePoint.putAll(timePoint);
     }
 
     public void addCityNode(FlightType flightType, String cityNode) {
@@ -69,14 +77,6 @@ public class Flight {
 
     public List<LocalTime> getTimePoint(GateStatus gateStatus) {
         return timePoint.entrySet().stream().filter(e -> e.getKey() == gateStatus).map(Map.Entry::getValue).collect(Collectors.toList());
-    }
-
-    public void addCityNodeMap(Map<FlightType, String> cityNode) {
-        this.cityNode = cityNode;
-    }
-
-    public void addTimePointMap(Map<GateStatus, LocalTime> timePoint) {
-        this.timePoint = timePoint;
     }
 
     public String getNumber() {
